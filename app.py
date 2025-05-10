@@ -1,113 +1,90 @@
+import streamlit as st
 import cv2
 import numpy as np
+from PIL import Image
+import io
+from filters.apply_filter import apply_filter
 
-def apply_filter(img, filter_name):
-    """
-    تطبيق فلاتر متنوعة على الصورة المدخلة.
-    img: صورة بتنسيق BGR (كما يتوقعها OpenCV).
-    filter_name: اسم الفلتر المطلوب تطبيقه.
-    """
-    print(f"Applying filter: {filter_name}")  # رسالة إلى وحدة التحكم
+# إعداد صفحة Streamlit
+st.set_page_config(page_title="Image Filter GUI", layout="wide")
+st.title("🖼️ Image Filter GUI with Streamlit")
+
+# تهيئة الحالة إذا لم تكن موجودة
+if "original_image" not in st.session_state:
+    st.session_state.original_image = None
+if "current_image" not in st.session_state:
+    st.session_state.current_image = None
+
+# رفع الصورة من المستخدم
+st.subheader("Upload an Image")
+uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
     try:
-        if filter_name == "Add noise":
-            print("Adding noise...")
-            noise = np.random.normal(0, 25, img.shape).astype(np.uint8)
-            return cv2.add(img, noise)
-        elif filter_name == "Remove noise":
-            print("Removing noise...")
-            return cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
-        elif filter_name == "Mean filter":
-            print("Applying mean filter...")
-            return cv2.blur(img, (5, 5))
-        elif filter_name == "Median filter":
-            print("Applying median filter...")
-            return cv2.medianBlur(img, 5)
-        elif filter_name == "Gaussian filter":
-            print("Applying Gaussian filter...")
-            return cv2.GaussianBlur(img, (5, 5), 0)
-        elif filter_name == "Gaussian noise":
-            print("Adding Gaussian noise...")
-            gauss = np.random.normal(0, 20, img.shape).astype(np.uint8)
-            return cv2.add(img, gauss)
-        elif filter_name == "Erosion":
-            print("Applying erosion...")
-            kernel = np.ones((5, 5), np.uint8)
-            return cv2.erode(img, kernel, iterations=1)
-        elif filter_name == "Dilation":
-            print("Applying dilation...")
-            kernel = np.ones((5, 5), np.uint8)
-            return cv2.dilate(img, kernel, iterations=1)
-        elif filter_name == "Opening":
-            print("Applying opening...")
-            kernel = np.ones((5, 5), np.uint8)
-            return cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
-        elif filter_name == "Closing":
-            print("Applying closing...")
-            kernel = np.ones((5, 5), np.uint8)
-            return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-        elif filter_name == "Boundary extraction":
-            print("Applying boundary extraction...")
-            kernel = np.ones((3, 3), np.uint8)
-            eroded = cv2.erode(img, kernel, iterations=1)
-            return cv2.absdiff(img, eroded)
-        elif filter_name == "Region filling":
-            print("Applying region filling...")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            _, th = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
-            h, w = th.shape[:2]
-            mask = np.zeros((h + 2, w + 2), np.uint8)
-            filled = th.copy()
-            cv2.floodFill(filled, mask, (0, 0), 255)
-            inv = cv2.bitwise_not(filled)
-            result = cv2.bitwise_or(th, inv)
-            return cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
-        elif filter_name == "Global threshold":
-            print("Applying global threshold...")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            _, threshed = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-            return cv2.cvtColor(threshed, cv2.COLOR_GRAY2BGR)
-        elif filter_name == "Adaptive threshold":
-            print("Applying adaptive threshold...")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            th = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                      cv2.THRESH_BINARY, 11, 2)
-            return cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
-        elif filter_name == "Otsu threshold":
-            print("Applying Otsu threshold...")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            _, th = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            return cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
-        elif filter_name == "Hough":
-            print("Applying Hough transform...")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-            lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 100, minLineLength=30, maxLineGap=10)
-            hough_img = img.copy()
-            if lines is not None:
-                for line in lines:
-                    x1, y1, x2, y2 = line[0]
-                    cv2.line(hough_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            return hough_img
-        elif filter_name == "Watershed":
-            print("Applying Watershed...")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            kernel = np.ones((3, 3), np.uint8)
-            opening = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
-            sure_bg = cv2.dilate(opening, kernel, iterations=3)
-            dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-            _, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
-            sure_fg = np.uint8(sure_fg)
-            unknown = cv2.subtract(sure_bg, sure_fg)
-            _, markers = cv2.connectedComponents(sure_fg)
-            markers = markers + 1
-            markers[unknown == 255] = 0
-            img_copy = img.copy()
-            markers = cv2.watershed(img_copy, markers)
-            img_copy[markers == -1] = [255, 0, 0]
-            return img_copy
-        else:
-            return img
+        image = Image.open(uploaded_file).convert("RGB")
+        st.session_state.original_image = np.array(image)
+        st.session_state.current_image = np.array(image)
+        st.success("Image loaded successfully!")
     except Exception as e:
-        print(f"Error in filter {filter_name}: {str(e)}")
-        raise Exception(f"Error in filter {filter_name}: {str(e)}")
+        st.error(f"Error loading image: {e}")
+
+# عرض الصورة الحالية
+if st.session_state.current_image is not None:
+    st.subheader("Current Image")
+    st.image(st.session_state.current_image, caption="Current Image", use_column_width=True)
+
+    # قسم الأزرار لتطبيق الفلاتر
+    st.subheader("Apply Filters")
+    cols = st.columns(4)  # تقسيم الأزرار إلى أعمدة
+
+    # قائمة الفلاتر
+    filters = [
+        "Add noise", "Remove noise", "Mean filter", "Median filter", "Gaussian filter",
+        "Gaussian noise", "Erosion", "Dilation", "Opening", "Closing",
+        "Boundary extraction", "Region filling", "Global threshold",
+        "Adaptive threshold", "Otsu threshold", "Hough", "Watershed"
+    ]
+
+    # إنشاء زر لكل فلتر
+    for idx, filter_name in enumerate(filters):
+        col = cols[idx % 4]  # توزيع الأزرار على الأعمدة
+        with col:
+            if st.button(filter_name):
+                try:
+                    img_bgr = cv2.cvtColor(st.session_state.current_image, cv2.COLOR_RGB2BGR)
+                    filtered_img = apply_filter(img_bgr, filter_name)
+                    st.session_state.current_image = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2RGB)
+                    st.success(f"{filter_name} applied successfully!")
+                    # عرض الصورة المعدلة مباشرة
+                    st.image(st.session_state.current_image, caption=f"Image after {filter_name}", use_column_width=True)
+                except Exception as e:
+                    st.error(f"Error applying {filter_name}: {e}")
+
+    # زر إعادة الضبط
+    st.subheader("Reset Image")
+    if st.button("Reset to Original"):
+        if st.session_state.original_image is not None:
+            st.session_state.current_image = st.session_state.original_image.copy()
+            st.success("Image reset to original!")
+            st.image(st.session_state.current_image, caption="Reset Image", use_column_width=True)
+
+    # زر التحميل
+    st.subheader("Download Image")
+    try:
+        if st.session_state.current_image is not None:
+            img_pil = Image.fromarray(st.session_state.current_image)
+            buf = io.BytesIO()
+            img_pil.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+            st.download_button(
+                label="📥 Download Filtered Image",
+                data=byte_im,
+                file_name="filtered_image.png",
+                mime="image/png"
+            )
+        else:
+            st.warning("No image to download. Please apply a filter first.")
+    except Exception as e:
+        st.error(f"Error preparing download: {e}")
+else:
+    st.info("Please upload an image to start.")
