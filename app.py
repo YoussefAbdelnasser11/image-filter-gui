@@ -6,7 +6,7 @@ import io
 from filters.apply_filter import apply_filter
 
 # إعداد صفحة Streamlit مع تنسيق أصغر
-st.set_page_config(page_title="Image Filter GUI", layout="wide")
+st.set_page_config(page_title="Image Filter GUI")
 st.markdown("<style>body {font-size: 14px;}</style>", unsafe_allow_html=True)  # تقليل حجم النصوص
 st.title("🖼️ Image Filter GUI")
 
