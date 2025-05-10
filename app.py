@@ -44,12 +44,13 @@ if st.session_state.current_image is not None:
     # تطبيق الفلتر عند النقر على الزر
     if selected_filter != "None":
         if st.button("Apply Filter"):
+            st.write(f"Applying filter: {selected_filter}")  # رسالة تصحيح
             try:
-                # تحويل الصورة إلى BGR لأن OpenCV يستخدم BGR
                 img_bgr = cv2.cvtColor(st.session_state.current_image, cv2.COLOR_RGB2BGR)
+                st.write(f"BGR image shape: {img_bgr.shape}")  # تحقق من أبعاد الصورة
                 filtered_img = apply_filter(img_bgr, selected_filter)
-                # تحويل الصورة مرة أخرى إلى RGB للعرض
                 st.session_state.current_image = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2RGB)
+                st.write("Filter applied, image updated!")  # رسالة تصحيح
                 st.rerun()
             except Exception as e:
                 st.error(f"Error applying filter: {e}")
@@ -61,20 +62,19 @@ if st.session_state.current_image is not None:
             st.rerun()
 
     # زر التحميل لحفظ الصورة المعدلة
-    if st.session_state.current_image is not None:
-        try:
-            img_pil = Image.fromarray(st.session_state.current_image)
-            buf = io.BytesIO()
-            img_pil.save(buf, format="PNG")
-            byte_im = buf.getvalue()
-            st.download_button(
-                label="📥 Download Image",
-                data=byte_im,
-                file_name="filtered_image.png",
-                mime="image/png"
-            )
-        except Exception as e:
-            st.error(f"Error preparing download: {e}")
+    try:
+        img_pil = Image.fromarray(st.session_state.current_image)
+        buf = io.BytesIO()
+        img_pil.save(buf, format="PNG")
+        byte_im = buf.getvalue()
+        st.download_button(
+            label="📥 Download Image",
+            data=byte_im,
+            file_name="filtered_image.png",
+            mime="image/png"
+        )
+    except Exception as e:
+        st.error(f"Error preparing download: {e}")
 else:
     st.info("Please upload an image to start.")
 
