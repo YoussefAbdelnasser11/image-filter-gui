@@ -77,4 +77,3 @@ if st.session_state.current_image is not None:
         st.error(f"Error preparing download: {e}")
 else:
     st.info("Please upload an image to start.")
-
